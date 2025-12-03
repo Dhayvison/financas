@@ -1,5 +1,6 @@
 package com.example.financas.controller;
 
+import com.example.financas.dto.SaldoDTO;
 import com.example.financas.model.Transacao;
 import com.example.financas.model.User;
 import com.example.financas.service.TransacaoService;
@@ -54,5 +55,11 @@ public class TransacaoController {
         transacaoService.deletar(id, userLogado);
 
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @GetMapping("/saldo")
+    public ResponseEntity<SaldoDTO> getSaldoDoUsuario(@AuthenticationPrincipal User userLogado) {
+        SaldoDTO saldo = transacaoService.getSaldoPorUsuario(userLogado);
+        return ResponseEntity.ok(saldo);
     }
 }

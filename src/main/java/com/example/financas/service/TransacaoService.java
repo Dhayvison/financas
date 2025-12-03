@@ -1,7 +1,9 @@
 package com.example.financas.service;
 
+import com.example.financas.dto.SaldoDTO;
 import com.example.financas.exception.ResourceNotFoundException;
 import com.example.financas.model.Categoria;
+import com.example.financas.model.TipoTransacao;
 import com.example.financas.model.Transacao;
 import com.example.financas.model.User;
 import com.example.financas.repository.CategoriaRepository;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -92,5 +95,20 @@ public class TransacaoService {
 
         // 2. Deleção
         transacaoRepository.delete(transacaoExistente);
+    }
+
+    public SaldoDTO getSaldoPorUsuario(User userLogado) {
+        // Busca a soma das RECEITAS. Se não houver, retorna 0.00
+        BigDecimal receitas = transacaoRepository.sumValorByTipoAndUser(TipoTransacao.RECEITA, userLogado)
+                .orElse(BigDecimal.ZERO);
+
+        // Busca a soma das DESPESAS. Se não houver, retorna 0.00
+        BigDecimal despesas = transacaoRepository.sumValorByTipoAndUser(TipoTransacao.DESPESA, userLogado)
+                .orElse(BigDecimal.ZERO);
+
+        // Calcula o saldo total: Receitas - Despesas
+        BigDecimal saldoTotal = receitas.subtract(despesas);
+
+        return new SaldoDTO(receitas, despesas, saldoTotal);
     }
 }
