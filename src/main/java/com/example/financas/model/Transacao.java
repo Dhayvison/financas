@@ -3,12 +3,14 @@ package com.example.financas.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 
 @Entity
@@ -17,18 +19,28 @@ public class Transacao {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false)
     private BigDecimal valor;
+
+    @Column(nullable = false)
     private LocalDate data;
+
     private String descricao;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TipoTransacao tipo;
 
     @ManyToOne
+    @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     public Transacao() {
-        super();
     }
 
     public Transacao(BigDecimal valor, LocalDate data, Categoria categoria) {
@@ -83,5 +95,13 @@ public class Transacao {
 
     public void setTipo(TipoTransacao tipo) {
         this.tipo = tipo;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

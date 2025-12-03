@@ -1,5 +1,5 @@
 package com.example.financas.dto;
 
-public record UserResponse(Long id,
-        String username) {
+public record UserResponse(String id,
+                String username) {
 }

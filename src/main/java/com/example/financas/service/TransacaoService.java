@@ -1,72 +1,96 @@
 package com.example.financas.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-
-import com.example.financas.model.TipoTransacao;
+import com.example.financas.exception.ResourceNotFoundException;
+import com.example.financas.model.Categoria;
 import com.example.financas.model.Transacao;
+import com.example.financas.model.User;
+import com.example.financas.repository.CategoriaRepository;
 import com.example.financas.repository.TransacaoRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
-import jakarta.persistence.EntityManager;
+import java.util.List;
 
 @Service
-@Transactional
 public class TransacaoService {
 
     private final TransacaoRepository transacaoRepository;
+    private final CategoriaRepository categoriaRepository;
 
-    @Autowired
-    private EntityManager entityManager;
-
-    public TransacaoService(TransacaoRepository transacaoRepository) {
+    public TransacaoService(TransacaoRepository transacaoRepository, CategoriaRepository categoriaRepository) {
         this.transacaoRepository = transacaoRepository;
+        this.categoriaRepository = categoriaRepository;
     }
 
-    public List<Transacao> listar() {
-        return transacaoRepository.findAll();
+    public List<Transacao> listarPorUsuario(User userLogado) {
+        return transacaoRepository.findByUser(userLogado);
     }
 
-    public Optional<Transacao> buscarPorId(Long id) {
-        return transacaoRepository.findById(id);
-    }
+    public Transacao criar(Transacao transacao, User userLogado) {
+        Categoria categoria = categoriaRepository.findById(transacao.getCategoria().getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Categoria não encontrada com ID: " + transacao.getCategoria().getId()));
 
-    public Transacao salvar(Transacao transacao) {
-
-        if (transacao.getValor() == null || transacao.getValor().compareTo(java.math.BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("O valor da transação não pode ser nulo e deve ser maior que zero.");
+        if (!categoria.getUser().getId().equals(userLogado.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "A categoria informada não pertence ao usuário logado.");
         }
 
-        if (transacao.getCategoria() == null) {
-            throw new IllegalArgumentException("A categoria da transação não pode ser nula.");
-        }
+        transacao.setUser(userLogado);
+        transacao.setCategoria(categoria);
 
-        if (transacao.getTipo() == null) {
-            throw new IllegalArgumentException("O tipo da transação não pode ser nulo.");
-        }
-
-        if (transacao.getData() == null) {
-            transacao.setData(java.time.LocalDate.now());
-        }
-
-        transacaoRepository.save(transacao);
-        entityManager.refresh(transacao);
-        return transacao;
+        return transacaoRepository.save(transacao);
     }
 
-    public void deletar(Long id) {
-        transacaoRepository.deleteById(id);
+    public Transacao atualizar(Long id, Transacao transacaoDetails, User userLogado) {
+
+        Transacao transacaoExistente = transacaoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada com id: " + id));
+
+        // 1. 🚨 REGRA DE SEGURANÇA: A transação pertence ao User logado?
+        if (!transacaoExistente.getUser().getId().equals(userLogado.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Você não tem permissão para atualizar esta transação.");
+        }
+
+        // 2. Lógica de Atualização de Categoria (se houver mudança)
+        if (transacaoDetails.getCategoria() != null
+                && !transacaoDetails.getCategoria().getId().equals(transacaoExistente.getCategoria().getId())) {
+
+            Categoria novaCategoria = categoriaRepository.findById(transacaoDetails.getCategoria().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Nova Categoria não encontrada com ID: " + transacaoDetails.getCategoria().getId()));
+
+            // 🚨 REGRA DE SEGURANÇA: A nova Categoria pertence ao User logado?
+            if (!novaCategoria.getUser().getId().equals(userLogado.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "A nova categoria informada não pertence ao usuário logado.");
+            }
+            transacaoExistente.setCategoria(novaCategoria);
+        }
+
+        // 3. Aplicar outras atualizações (Lógica de Negócio)
+        transacaoExistente.setDescricao(transacaoDetails.getDescricao());
+        transacaoExistente.setValor(transacaoDetails.getValor());
+        transacaoExistente.setData(transacaoDetails.getData());
+        transacaoExistente.setTipo(transacaoDetails.getTipo());
+
+        return transacaoRepository.save(transacaoExistente);
     }
 
-    public BigDecimal calcularSaldo() {
-        return transacaoRepository.findAll()
-                .stream()
-                .map(transacao -> transacao.getTipo().equals(TipoTransacao.DESPESA) ? transacao.getValor().negate()
-                        : transacao.getValor())
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+    public void deletar(Long id, User userLogado) {
+
+        Transacao transacaoExistente = transacaoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada com id: " + id));
+
+        // 1. 🚨 REGRA DE SEGURANÇA: A transação pertence ao User logado?
+        if (!transacaoExistente.getUser().getId().equals(userLogado.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Você não tem permissão para deletar esta transação.");
+        }
+
+        // 2. Deleção
+        transacaoRepository.delete(transacaoExistente);
     }
 }
