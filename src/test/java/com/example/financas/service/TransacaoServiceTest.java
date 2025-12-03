@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -79,6 +81,19 @@ class TransacaoServiceTest {
     }
 
     @Test
+    void criarTransacaoFalhaSeCategoriaNaoEncontrada() {
+
+        when(categoriaRepository.findById(categoriaProprietario.getId()))
+                .thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> {
+            transacaoService.criar(transacaoProprietario, usuarioProprietario);
+        });
+
+        verify(transacaoRepository, never()).save(any(Transacao.class));
+    }
+
+    @Test
     void criarTransacaoFalhaSeCategoriaNaoPertenceAoUsuario() {
         Categoria categoriaInvasora = new Categoria(20L, "Invasão", usuarioInvasor);
         transacaoProprietario.setCategoria(categoriaInvasora);
@@ -89,6 +104,28 @@ class TransacaoServiceTest {
         assertThrows(ResponseStatusException.class, () -> {
             transacaoService.criar(transacaoProprietario, usuarioProprietario);
         }, "Deve lançar 403 Forbidden");
+
+        verify(transacaoRepository, never()).save(any(Transacao.class));
+    }
+
+    @Test
+    void atualizarTransacaoFalhaSeNovaCategoriaNaoEncontrada() {
+
+        when(transacaoRepository.findById(transacaoProprietario.getId()))
+                .thenReturn(Optional.of(transacaoProprietario));
+
+        when(categoriaRepository.findById(anyLong()))
+                .thenReturn(Optional.empty());
+
+        Categoria categoriaNaoExistente = new Categoria();
+        categoriaNaoExistente.setId(999L);
+
+        Transacao detalhesAtualizados = new Transacao();
+        detalhesAtualizados.setCategoria(categoriaNaoExistente);
+
+        assertThrows(ResourceNotFoundException.class, () -> {
+            transacaoService.atualizar(transacaoProprietario.getId(), detalhesAtualizados, usuarioProprietario);
+        });
 
         verify(transacaoRepository, never()).save(any(Transacao.class));
     }
@@ -110,6 +147,35 @@ class TransacaoServiceTest {
 
         assertEquals("Descrição Atualizada", resultado.getDescricao());
         assertEquals(new BigDecimal("1500.00"), resultado.getValor());
+    }
+
+    @Test
+    void atualizarTransacaoComSucessoMudandoCategoria() {
+
+        Categoria novaCategoriaProprietario = new Categoria(50L, "Viagem", usuarioProprietario);
+
+        when(transacaoRepository.findById(transacaoProprietario.getId()))
+                .thenReturn(Optional.of(transacaoProprietario));
+
+        when(categoriaRepository.findById(novaCategoriaProprietario.getId()))
+                .thenReturn(Optional.of(novaCategoriaProprietario));
+
+        when(transacaoRepository.save(any(Transacao.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Transacao detalhesAtualizados = new Transacao();
+        detalhesAtualizados.setCategoria(novaCategoriaProprietario);
+        detalhesAtualizados.setDescricao("Viagem para X");
+
+        Transacao resultado = transacaoService.atualizar(transacaoProprietario.getId(), detalhesAtualizados,
+                usuarioProprietario);
+
+        assertNotNull(resultado);
+
+        assertEquals(novaCategoriaProprietario.getId(), resultado.getCategoria().getId());
+        assertEquals("Viagem para X", resultado.getDescricao());
+
+        verify(transacaoRepository, times(1)).save(any(Transacao.class));
     }
 
     @Test
@@ -160,4 +226,29 @@ class TransacaoServiceTest {
         verify(transacaoRepository, never()).delete(any(Transacao.class));
     }
 
+    @Test
+    void listarPorUsuarioDeveRetornarListaDeTransacoes() {
+
+        when(transacaoRepository.findByUser(any(User.class)))
+                .thenReturn(List.of(transacaoProprietario));
+
+        List<Transacao> resultado = transacaoService.listarPorUsuario(usuarioProprietario);
+
+        assertFalse(resultado.isEmpty());
+        assertEquals(1, resultado.size());
+
+        verify(transacaoRepository, times(1)).findByUser(usuarioProprietario);
+    }
+
+    @Test
+    void listarPorUsuarioDeveRetornarListaVaziaSeNaoHouverTransacoes() {
+
+        when(transacaoRepository.findByUser(any(User.class)))
+                .thenReturn(Collections.emptyList());
+
+        List<Transacao> resultado = transacaoService.listarPorUsuario(usuarioProprietario);
+
+        assertTrue(resultado.isEmpty());
+        verify(transacaoRepository, times(1)).findByUser(usuarioProprietario);
+    }
 }
