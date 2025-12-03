@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.0'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
 
 group = 'com.example'
@@ -29,8 +30,37 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-core'
+}
+
+jacoco {
+    toolVersion = "0.8.14" 
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
+    finalizedBy 'jacocoTestReport'
+}
+
+tasks.named('jacocoTestReport', JacocoReport) {
+    dependsOn tasks.test
+
+    // 1. CORREÇÃO DA FONTE DO CÓDIGO (Source Sets)
+    // Usar classDirectories.setFrom para especificar onde encontrar as classes compiladas.
+    // Isso é mais robusto contra o erro de "sourceSets extension".
+    classDirectories.setFrom(files(project.sourceSets.main.output.classesDirs)) // 👈 CORREÇÃO AQUI
+
+    // Define de onde virão os arquivos .exec (dados de execução)
+    executionData.setFrom(fileTree(project.buildDir).include('jacoco/*.exec'))
+
+    // Define os arquivos de origem (para que o relatório HTML possa mostrar o código)
+    sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
+
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco/html')
+    }
 }

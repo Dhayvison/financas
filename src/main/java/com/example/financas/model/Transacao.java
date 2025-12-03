@@ -49,6 +49,16 @@ public class Transacao {
         this.categoria = categoria;
     }
 
+    public Transacao(String string, BigDecimal bigDecimal, LocalDate now, TipoTransacao despesa,
+            User usuarioProprietario, Categoria categoriaProprietario) {
+        this.descricao = string;
+        this.valor = bigDecimal;
+        this.data = now;
+        this.tipo = despesa;
+        this.user = usuarioProprietario;
+        this.categoria = categoriaProprietario;
+    }
+
     public Long getId() {
         return id;
     }

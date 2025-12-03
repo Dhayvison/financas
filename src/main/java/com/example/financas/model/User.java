@@ -1,5 +1,7 @@
 package com.example.financas.model;
 
+import java.util.UUID;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -16,7 +18,7 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    private UUID id;
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -32,11 +34,11 @@ public class User implements UserDetails {
         this.password = password;
     }
 
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

@@ -2,7 +2,6 @@ package com.example.financas.controller;
 
 import com.example.financas.model.Categoria;
 import com.example.financas.model.User;
-import com.example.financas.repository.CategoriaRepository;
 import com.example.financas.service.CategoriaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

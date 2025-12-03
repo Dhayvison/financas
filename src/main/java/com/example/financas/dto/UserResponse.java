@@ -1,5 +1,7 @@
 package com.example.financas.dto;
 
-public record UserResponse(String id,
-                String username) {
+import java.util.UUID;
+
+public record UserResponse(UUID id,
+        String username) {
 }
